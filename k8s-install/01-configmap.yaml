@@ -1,0 +1,153 @@
+apiVersion: v1
+data:
+  index.html: |-
+    <!DOCTYPE html>
+    <html>
+
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>PasteBin by Usama Ejaz</title>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.1/css/bulma.min.css" />
+      <link rel="stylesheet" href="./style.css" />
+    </head>
+
+    <body>
+      <header class="section">
+        <div class="container">
+          <h1 class="title">
+            PasteBin for Text
+          </h1>
+          <p class="subtitle">
+            A simple NGINX+LUA based pastebin service
+          </p>
+        </div>
+      </header>
+      <main class="section">
+        <div class="container">
+          <form method="POST" action="/api/pastes" id="form-paste">
+            <div class="field">
+              <div class="control">
+                <textarea id="content" class="textarea" placeholder="enter text here" rows="10"></textarea>
+              </div>
+            </div>
+            <div class="field">
+              <div class="control">
+                <button class="button" type="submit" id="submit-btn">Create Paste</button>
+                <input type="text" class="input is-inline is-invisible" readonly id="url" onclick="this.select()" />
+              </div>
+            </div>
+            <div class="notification is-invisible" id="notification">
+              <p class="has-text-dark">Pastes are deleted after 24hrs.</p>
+            </div>
+          </form>
+        </div>
+      </main>
+      <footer class="footer has-text-dark">
+        <div class="content has-text-centered">
+          <p>
+            A demo NGINX + LUA based pastebin by
+            <a class="has-text-dark" href="https://usamaejaz.com">Usama Ejaz</a> | Source Code on
+            <a class="has-text-dark" href="https://github.com/usamaejaz/nginx-pastebin">GitHub</a>
+          </p>
+        </div>
+      </footer>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+      <script src="./site.js"></script>
+    </body>
+
+    </html>
+  nginx-site.conf: "\nserver {\n\tlisten 80;\n\tlisten [::]:80;\n\n\troot /etc/nginx/conf.d/;\n\n\tindex
+    index.html index.htm index.nginx-debian.html;\n\n\tserver_name pastebin.*; \n\n\tlocation
+    ~ /.git/ { access_log off; log_not_found off; deny all; }\n\tlocation ~ /(.gitignore|.gitmodules)
+    { access_log off; log_not_found off; deny all; }\n\tlocation ~ /(build.xml|composer.json|composer.phar|generator.php|phing|README.md)
+    { access_log off; log_not_found off; deny all; }\n\tlocation ~ /(Changelog.md|composer.lock|config.php|default_config.php|LICENSE)
+    { access_log off; log_not_found off; deny all; }\n\tlocation ~ /\\. { access_log
+    off; log_not_found off; deny all; }\n\tlocation ~ /error.log { deny all; }\n\n\t#
+    Directives to send expires headers and turn off 404 error logging.\n\tlocation
+    ~* ^.+\\.(ogg|ogv|svg|svgz|eot|otf|woff|mp4|ttf|rss|atom|jpg|jpeg|gif|png|ico|zip|tgz|gz|rar|bz2|doc|xls|exe|ppt|tar|mid|midi|wav|bmp|rtf)$
+    {\n\t\taccess_log off; \n\t\tlog_not_found off; \n\t\texpires max;\n\t}\n\n\tlocation
+    / {\n\t\t# First attempt to serve request as file, then\n\t\t# as directory, then
+    fall back to displaying a 404.\n\t\ttry_files $uri $uri/ /pastes/$uri;\n\t}\n\n\tlocation
+    /pastes {\n\t\tinternal;\n\t\tdefault_type \"text/plain\";\n\t}\n\n\t# api for
+    storing paste\n\tlocation = /api/pastes {\n\t\tdefault_type \"text/plain\";\n\n\t\tclient_max_body_size
+    128k;\n\t\tclient_body_buffer_size 128k;\n\t\t\t\t\n\t\tcontent_by_lua_block {\n\t\t\tngx.req.read_body()\n\t\t\t\n\t\t\tlocal
+    method = ngx.req.get_method()\n\n\t\t\tif method == \"POST\" then\n\t\t\t\tlocal
+    args, err = ngx.req.get_post_args(1)\n\n\t\t\t\tif err == \"truncated\" then\n\t\t\t\t\tngx.say(\"error:
+    only one POST parameter allowed.\")\n\t\t\t\t\tngx.exit(403)\n\t\t\t\tend\n\n\t\t\t\tif
+    not args then\n\t\t\t\t\tngx.say(\"error: failed to get post args: \", err)\n\t\t\t\t\tngx.exit(500)\n\t\t\t\tend\n\t\t\t\t\n\t\t\t\tlocal
+    content = args.content\n\n\t\t\t\tif content == nill then\n\t\t\t\t\tngx.say(\"error:
+    required parameter 'content' not set\")\n\t\t\t\t\tngx.exit(400)\n\t\t\t\telseif
+    content == \"\" then\n\t\t\t\t\tngx.say(\"error: required parameter 'content'
+    is empty\")\n\t\t\t\t\tngx.exit(400)\n\t\t\t\tend\n\n\t\t\t\tmath.randomseed(os.clock()+os.time())\n\t\t\t\tlocal
+    random = math.random\n\t\t\t\tlocal function randid()\n\t\t\t\t\tlocal template
+    ='xxxx4xxxxxxyxxxx'\n\t\t\t\t\treturn string.gsub(template, '[xy]', function (c)\n\t\t\t\t\t\tlocal
+    v = (c == 'x') and random(0, 0xf) or random(8, 0xb)\n\t\t\t\t\t\treturn string.format('%x',
+    v)\n\t\t\t\t\tend)\n\t\t\t\tend\n\t\t\t\tlocal name = randid()\n\t\t\t\tlocal
+    file, err = io.open(\"/etc/nginx/conf.d/pastes/\" .. name, \"w\")\n\t\t\t\tif
+    file == nill then\n\t\t\t\t\tngx.say(\"error: couldn't open file: \", err)\n\t\t\t\telse
+    \n\t\t\t\t\tfile:write(content)\n\t\t\t\t\tfile:close()\n\t\t\t\tend\n\t\t\t\t\n\t\t\t\tngx.say(\"https://\",
+    ngx.var.host, \"/\", name)\n\n\t\t\telseif method == \"GET\" then\n\t\t\t\tngx.say(\"send
+    a post request with 'content=your_text_content'\")\n\t\t\telse \n\t\t\t\tngx.say(\"error:
+    not allowed\")\n\t\t\t\tngx.exit(405)\n\t\t\tend\n\t\t}\n\t}\n\n}"
+  site.js: |
+    // @ts-ignore
+    jQuery(function($) {
+        var sending = false;
+        $("#form-paste").on("submit", function() {
+            if (sending) return false;
+            var $submitBtn = $("#submit-btn");
+            var $form = $(this);
+            var content = $("#content").val().trim();
+            if(!content.length) return false;
+            $.ajax({
+                url: "./api/pastes",
+                type: "POST",
+                data: {
+                    content: content
+                },
+                beforeSend: function() {
+                    $submitBtn.addClass("is-loading is-disabled");
+                    sending = true;
+                    $("#url")
+                        .val("")
+                        .addClass("is-invisible");
+                },
+                success: function(res) {
+                    $submitBtn.removeClass("is-loading is-disabled");
+                    if (res.indexOf("error:") > -1) {
+                        alert(res);
+                    } else if (res.indexOf("http") === 0) {
+                        $form[0].reset();
+                        $("#url")
+                            .val(res)
+                            .removeClass("is-invisible").focus();
+                        $("#notification").removeClass("is-invisible");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert(error || status);
+                    $submitBtn.removeClass("is-loading is-disabled");
+                }
+            }).always(function() {
+                sending = false;
+            });
+            return false;
+        });
+    });
+  style.css: |-
+    header {
+        padding-bottom: 0 !important;
+    }
+    footer a {
+        text-decoration: underline;
+    }
+
+    input#url {
+        width: 100%;
+        max-width: 600px;
+    }
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: nginx-pastebin-content

@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-pastebin
+  labels:
+    app: nginx-pastebin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-pastebin
+  template:
+    metadata:
+      labels:
+        app: nginx-pastebin
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: content
+          mountPath: /etc/nginx/conf.d
+      volumes:
+      - name: content
+        configMap:
+          name: nginx-pastebin-content
