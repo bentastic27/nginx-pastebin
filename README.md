@@ -1,3 +1,5 @@
+Fork to turn into a k8s deployment
+
 # nginx-pastebin
 
 > A pastebin for text using NGINX and Lua
